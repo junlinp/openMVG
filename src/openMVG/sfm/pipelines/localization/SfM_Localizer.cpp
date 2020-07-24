@@ -13,6 +13,7 @@
 #include "openMVG/cameras/Camera_Pinhole.hpp"
 #include "openMVG/multiview/solver_resection_kernel.hpp"
 #include "openMVG/multiview/solver_resection_p3p.hpp"
+#include "openMVG/multiview/solver_resection_up2p_kukelova.hpp"
 #include "openMVG/sfm/sfm_data.hpp"
 #include "openMVG/sfm/sfm_data_BA.hpp"
 #include "openMVG/sfm/sfm_data_BA_ceres.hpp"
@@ -104,15 +105,6 @@ private:
 namespace openMVG {
 namespace sfm {
 
-  struct ResectionSquaredResidualError {
-    // Compute the residual of the projection distance(pt2D, Project(P,pt3D))
-    // Return the squared error
-    static double Error(const Mat34 & P, const Vec2 & pt2D, const Vec3 & pt3D) {
-      const Vec2 x = Project(P, pt3D);
-      return (x - pt2D).squaredNorm();
-    }
-  };
-
   bool SfM_Localizer::Localize
   (
     const resection::SolverType & solver_type,
@@ -148,7 +140,7 @@ namespace sfm {
         using KernelType =
           openMVG::robust::ACKernelAdaptorResection<
             SolverType,
-            ResectionSquaredResidualError,
+            resection::SquaredPixelReprojectionError,
             openMVG::robust::UnnormalizerResection,
             Mat34>;
 
@@ -236,6 +228,37 @@ namespace sfm {
         //--
         // Since the intrinsic data is known, compute only the pose
         using SolverType = openMVG::euclidean_resection::P3PSolver_Kneip;
+        MINIMUM_SAMPLES = SolverType::MINIMUM_SAMPLES;
+
+        using KernelType =
+          ACKernelAdaptorResection_Intrinsics<
+            SolverType,
+            Mat34>;
+
+        KernelType kernel(resection_data.pt2D, resection_data.pt3D, optional_intrinsics);
+
+        // Robust estimation of the pose matrix and its precision
+        const auto ACRansacOut =
+          openMVG::robust::ACRANSAC(kernel,
+                                    resection_data.vec_inliers,
+                                    resection_data.max_iteration,
+                                    &P,
+                                    dPrecision,
+                                    true);
+        // Update the upper bound precision of the model found by AC-RANSAC
+        resection_data.error_max = ACRansacOut.first;
+      }
+      break;
+      case resection::SolverType::UP2P_KUKELOVA_ACCV10:
+      {
+        if (!optional_intrinsics)
+        {
+          std::cerr << "Intrinsic data is required for P3P solvers." << std::endl;
+          return false;
+        }
+        //--
+        // Since the intrinsic data is known, compute only the pose
+        using SolverType = openMVG::euclidean_resection::UP2PSolver_Kukelova;
         MINIMUM_SAMPLES = SolverType::MINIMUM_SAMPLES;
 
         using KernelType =
