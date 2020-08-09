@@ -144,24 +144,24 @@ bool Bundle_Adjustment_Admm::Adjust(SfM_Data& sfm_data,
 
   // one epoch
   //
-  std::for_each(total_processors.begin(), total_processors.end(),
-                [](const auto& element) { element->X_update(); });
+  // std::for_each(total_processors.begin(), total_processors.end(),
+  //              [](const auto& element) { element->X_update(); });
 
   // collect all the variable
   std::vector<double> initial_;
   // TODO:
   // this binary function can reuse;
-  std::accumulate(view_id_map_processor.begin(), view_id_map_processor.end(),
-                  initial_,
-                  [](const std::vector<double>& init, const auto& item) {
-                    auto res = init;
-                    if (init.size() == 0) {
-                      res = item->getLocalCameraParams();
-                    } else {
-                      res = init + item->getLocalCameraParams();
-                    }
-                    return res;
-                  });
+  // std::accumulate(view_id_map_processor.begin(), view_id_map_processor.end(),
+  //                initial_,
+  //                [](const std::vector<double>& init, const auto& item) {
+  //                  auto res = init;
+  //                  if (init.size() == 0) {
+  //                    res = item->getLocalCameraParams();
+  //                  } else {
+  //                    res = init + item->getLocalCameraParams();
+  //                  }
+  //                  return res;
+  //                });
   return false;
 }
 }  // namespace sfm

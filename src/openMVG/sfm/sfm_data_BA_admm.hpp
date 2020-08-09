@@ -7,7 +7,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #ifndef OPENMVG_SFM_SFM_DATA_BA_ADMM_HPP
-#define OPENMVG_SFM_SFM_DATA_BA_ADMMHPP
+#define OPENMVG_SFM_SFM_DATA_BA_ADMM_HPP
 #include <memory>
 
 #include "openMVG/sfm/sfm_data_BA.hpp"
