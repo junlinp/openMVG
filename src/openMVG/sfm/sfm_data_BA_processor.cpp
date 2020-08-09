@@ -33,18 +33,62 @@ namespace sfm {
 
 
 void CPUProcessor::OptimizeParameters() {
+    std::cout << "Origin Camera : " << std::endl; 
+    for (auto& camera_para : camera_params_) {
+        std::cout << camera_para << " ";
+    }
+    std::cout << std::endl;
+
+    std::cout << "Origin pose : " << std::endl; 
+    for (auto& camera_para : pose_params_) {
+        std::cout << camera_para << " ";
+    }
+    std::cout << std::endl;
+
+    std::cout << "Origin structure : " << std::endl; 
+    for (auto& camera_para : structure_params_) {
+        std::cout << camera_para << " ";
+    }
+    std::cout << std::endl;
     ceres::CostFunction* intrins_cost_function = IntrinsicsToCostFunction(camera_type_, Eigen::Map<const Eigen::Vector2d>(&observations_[0]), structure_weight_);
     ceres::Problem problem;
 
     problem.AddParameterBlock(&camera_params_[0], camera_params_.size());
+    if (options_.intrinsics_opt != openMVG::cameras::Intrinsic_Parameter_Type::ADJUST_ALL) {
+        problem.SetParameterBlockConstant(&camera_params_[0]);
+    }
     problem.AddParameterBlock(&pose_params_[0], pose_params_.size());
+    if (options_.extrinsics_opt != openMVG::sfm::Extrinsic_Parameter_Type::ADJUST_ALL) {
+        problem.SetParameterBlockConstant(&pose_params_[0]);
+    }
     problem.AddParameterBlock(&structure_params_[0], structure_params_.size());
-
+    if (options_.structure_opt != openMVG::sfm::Structure_Parameter_Type::ADJUST_ALL) {
+        problem.SetParameterBlockConstant(&structure_params_[0]);
+    }
     problem.AddResidualBlock(intrins_cost_function, nullptr, &camera_params_[0], &pose_params_[0], &structure_params_[0]);
     ceres::Solver::Options options; 
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
     std::cout << summary.BriefReport() << std::endl;
+
+    std::cout << "Camera : " << std::endl; 
+    for (auto& camera_para : camera_params_) {
+        std::cout << camera_para << " ";
+    }
+    std::cout << std::endl;
+
+    std::cout << "pose : " << std::endl; 
+    for (auto& camera_para : pose_params_) {
+        std::cout << camera_para << " ";
+    }
+    std::cout << std::endl;
+
+    std::cout << "structure : " << std::endl; 
+    for (auto& camera_para : structure_params_) {
+        std::cout << camera_para << " ";
+    }
+    std::cout << std::endl;
+
 }
 }  // namespace sfm
 }  // namespace openMVG
