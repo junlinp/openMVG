@@ -33,6 +33,7 @@ namespace sfm {
 
 
 void CPUProcessor::OptimizeParameters() {
+    /*
     std::cout << "Origin Camera : " << std::endl; 
     for (auto& camera_para : camera_params_) {
         std::cout << camera_para << " ";
@@ -50,6 +51,7 @@ void CPUProcessor::OptimizeParameters() {
         std::cout << camera_para << " ";
     }
     std::cout << std::endl;
+    */
     ceres::CostFunction* intrins_cost_function = IntrinsicsToCostFunction(camera_type_, Eigen::Map<const Eigen::Vector2d>(&observations_[0]), structure_weight_);
     ceres::Problem problem;
 
@@ -70,7 +72,7 @@ void CPUProcessor::OptimizeParameters() {
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
     std::cout << summary.BriefReport() << std::endl;
-
+    /*
     std::cout << "Camera : " << std::endl; 
     for (auto& camera_para : camera_params_) {
         std::cout << camera_para << " ";
@@ -88,7 +90,7 @@ void CPUProcessor::OptimizeParameters() {
         std::cout << camera_para << " ";
     }
     std::cout << std::endl;
-
+    */
 }
 }  // namespace sfm
 }  // namespace openMVG
