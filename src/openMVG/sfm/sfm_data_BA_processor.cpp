@@ -37,8 +37,8 @@ struct MultiplerCost {
   double rho;
 
   MultiplerCost(std::vector<double> y, std::vector<double> z, double rho_) {
-    y = y;
-    z = z;
+    this->y = y;
+    this->z = z;
     rho = rho_;
   }
 
@@ -46,6 +46,7 @@ struct MultiplerCost {
   bool operator()(const T* x, T* residual) const {
     const size_t vector_size = y.size();
     double d = 1.0 / rho;
+    residual[0] = T(0.0);
     for (int i = 0; i < vector_size; i++) {
       residual[0] += T(y[i]) * (x[i] - T(z[i])) +
                      d * (x[i] - T(z[i])) * (x[i] - T(z[i]));

@@ -104,9 +104,9 @@ TEST(BUNDLE_ADJUSTMENT_ADMM, Optimize_Scene) {
       }
     }
   }
-  EXPECT_NEAR(global_point_parameter[0], 1.0, 1e-5);
-  EXPECT_NEAR(global_point_parameter[1], 2.0, 1e-5);
-  EXPECT_NEAR(global_point_parameter[2], 4.0, 1e-5);
+  EXPECT_NEAR(1.0, global_point_parameter[0], 1e-5);
+  EXPECT_NEAR(2.0, global_point_parameter[1], 1e-5);
+  EXPECT_NEAR(4.0, global_point_parameter[2], 1e-5);
 }
 int main() {
   TestResult tr;
