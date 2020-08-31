@@ -1,8 +1,8 @@
 #ifndef SFM_DATA_BA_PROCESSOR_HPP_
 #define SFM_DATA_BA_PROCESSOR_HPP_
 #include "openMVG/cameras/Camera_Common.hpp"
-#include "openMVG/cameras/Camera_Spherical.hpp"
 #include "openMVG/cameras/Camera_Intrinsics.hpp"
+#include "openMVG/cameras/Camera_Spherical.hpp"
 #include "sfm_data_BA.hpp"
 #include "sfm_data_BA_ceres_camera_functor.hpp"
 namespace openMVG {
@@ -29,8 +29,7 @@ class Processor {
         structure_params_multipler_(structure_params.size(), 0.0),
         camera_consensus_params_(camera_params),
         pose_consensus_params_(pose_params),
-        structure_consensus_params_(structure_params)
-         {}
+        structure_consensus_params_(structure_params) {}
   virtual ~Processor() {}
   virtual void XOptimization() = 0;
   // params + 1.0 / rho * params_multipler
@@ -83,8 +82,8 @@ class CPUProcessor : public Processor {
   void ZOptimization() override;
   void YUpdate() override;
 
-  std::vector<double> getLocalCameraParams() override ;
-  std::vector<double> getLocalPoseParams() override; 
+  std::vector<double> getLocalCameraParams() override;
+  std::vector<double> getLocalPoseParams() override;
   std::vector<double> getLocalStructureParams() override;
 
   void setUpdateCameraParamsConsusence(
@@ -97,24 +96,51 @@ class CPUProcessor : public Processor {
       const std::vector<double>& structure_consensus_params) override;
 
  private:
+ std::vector<int> PoseSubParameterization(openMVG::sfm::Extrinsic_Parameter_Type pose_subparameterization_option) {
+   std::vector<int> res;
+   if (pose_subparameterization_option == openMVG::sfm::Extrinsic_Parameter_Type::ADJUST_ROTATION) {
+     res = {0, 1, 2};
+   } else if (pose_subparameterization_option == openMVG::sfm::Extrinsic_Parameter_Type::ADJUST_TRANSLATION) {
+     res = {3, 4, 5};
+   } else if (pose_subparameterization_option == openMVG::sfm::Extrinsic_Parameter_Type::NONE) {
+     res = {0, 1, 2, 3, 4, 5};
+   }
+   return res;
+ }
+
+ std::vector<int> StructureSubParameterization(openMVG::sfm::Structure_Parameter_Type structure_subparameterization_option) {
+   std::vector<int> res;
+   if (structure_subparameterization_option == openMVG::sfm::Structure_Parameter_Type::NONE) {
+     res = {0, 1, 2};
+   }
+   return res;
+ } 
   std::vector<double> ZUpdate(std::vector<double> origin_params,
                               std::vector<double> origin_params_multipler,
-                              double rho) {
+                              const std::vector<int>& vec_constant_index, double rho) {
+    std::set<int> s;
+    s.insert(begin(vec_constant_index), end(vec_constant_index));
+
     double d = 1.0 / (rho_ + std::numeric_limits<double>::epsilon());
     std::vector<double> res_vector;
     for (int i = 0; i < origin_params.size(); i++) {
-      res_vector.push_back(origin_params[i] - d * origin_params_multipler[i]);
+      if (s.find(i) != s.end()) {
+        res_vector.push_back(origin_params[i]);
+      } else {
+        res_vector.push_back(origin_params[i] - d * origin_params_multipler[i]);
+      }
     }
     return res_vector;
   }
 
-  std::vector<double> YUpdate(std::vector<double>& origin_params, std::vector<double>& origin_consusens_params, double rho) {
+  std::vector<double> YUpdate(std::vector<double>& origin_params,
+                              std::vector<double>& origin_consusens_params,
+                              double rho) {
     std::vector<double> res;
-    for (int i = 0; i < origin_params.size();i++) {
+    for (int i = 0; i < origin_params.size(); i++) {
       res.push_back(rho * (origin_params[i] - origin_consusens_params[i]));
     }
     return res;
-
   }
 };
 
