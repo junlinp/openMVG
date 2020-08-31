@@ -132,7 +132,7 @@ bool Bundle_Adjustment_Admm::Adjust(SfM_Data& sfm_data,
       const auto intrinsic = sfm_data.intrinsics.at(view->id_intrinsic);
       std::vector<double> ob_x = {obs_it.second.x(0), obs_it.second.x(1)};
       auto processor = std::make_shared<CPUProcessor>(
-          intrinsic->getType(), map_intrinsics[view->id_intrinsic],
+          intrinsic.get(), map_intrinsics[view->id_intrinsic],
           map_poses[view->id_pose], map_structure[id_structure], ob_x, options);
 
       view_id_map_processor[view->id_view] = processor;
