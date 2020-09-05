@@ -44,6 +44,8 @@ SfM_Data getInputScene
   const bool b_use_noise_on_image_observations = true
 );
 
+void OutputInfomation(const SfM_Data& sfm_data);
+
 TEST(BUNDLE_ADJUSTMENT, EffectiveMinimization_Pinhole) {
 
   const int nviews = 3;
@@ -70,8 +72,44 @@ TEST(BUNDLE_ADJUSTMENT, EffectiveMinimization_Pinhole) {
 
   const double dResidual_after = RMSE(sfm_data);
   EXPECT_TRUE( dResidual_before > dResidual_after);
+  std::cout << "Residual before : " << dResidual_before << std::endl;
+  std::cout << "Residual after : " << dResidual_after << std::endl;
+  std::cout << "Ceres Infomation : " << std::endl;
+  OutputInfomation(sfm_data);
 }
 
+TEST(BUNDLE_ADJUSTMENT_ADMM, EffectiveMinimization_Pinhole) {
+
+  const int nviews = 3;
+  const int npoints = 6;
+  const nViewDatasetConfigurator config;
+  const NViewDataSet d = NRealisticCamerasRing(nviews, npoints, config);
+
+  // Translate the input dataset to a SfM_Data scene
+  SfM_Data sfm_data = getInputScene(d, config, PINHOLE_CAMERA);
+
+  const double dResidual_before = RMSE(sfm_data);
+
+  // Call the BA interface and let it refine (Structure and Camera parameters [Intrinsics|Motion])
+  const bool bVerbose = true;
+  const bool bMultithread = false;
+  std::shared_ptr<Bundle_Adjustment> ba_object =
+    std::make_shared<Bundle_Adjustment_Admm>(
+      Bundle_Adjustment_Admm::BA_Admm_options());
+  EXPECT_TRUE( ba_object->Adjust(sfm_data,
+    Optimize_Options(
+      Intrinsic_Parameter_Type::ADJUST_ALL,
+      Extrinsic_Parameter_Type::ADJUST_ALL,
+      Structure_Parameter_Type::ADJUST_ALL)) );
+
+  const double dResidual_after = RMSE(sfm_data);
+  std::cout << "Residual before : " << dResidual_before << std::endl;
+  std::cout << "Residual after : " << dResidual_after << std::endl;
+
+  std::cout << "Ceres Infomation : " << std::endl;
+  OutputInfomation(sfm_data);
+  EXPECT_TRUE( dResidual_before > dResidual_after);
+}
 TEST(BUNDLE_ADJUSTMENT, EffectiveMinimization_Pinhole_Radial_K1) {
 
   const int nviews = 3;
@@ -464,6 +502,22 @@ SfM_Data getInputScene
   return sfm_data;
 }
 
+void OutputInfomation(const SfM_Data& sfm_data) {
+
+  for( const auto& view_it : sfm_data.views) {
+    std::vector<double> parameter = sfm_data.intrinsics.at(view_it.second->id_intrinsic)->getParams();
+    std::cout << "View Id [" << view_it.second->id_view << "]" << std::endl
+    << "Intrinsic : K [" << parameter[0] << "]  CX :[" << parameter[1] << "]  CY: [" << parameter[2] << "]"<< std::endl
+    << "R : " << sfm_data.poses.at(view_it.second->id_pose).rotation() << std::endl
+    << "Center : " << sfm_data.poses.at(view_it.second->id_pose).center() << std::endl;
+  }
+
+  for (const auto& structure_it : sfm_data.structure) {
+    std::cout << "Structure Id [" << structure_it.first << "]" << std::endl
+            << "X : " << structure_it.second.X << std::endl;
+  }
+
+}
 /* ************************************************************************* */
 int main() { TestResult tr; return TestRegistry::runAllTests(tr);}
 /* ************************************************************************* */

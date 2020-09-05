@@ -36,8 +36,9 @@ class Bundle_Adjustment_Admm : public Bundle_Adjustment {
 
  public:
   explicit Bundle_Adjustment_Admm(
-      const Bundle_Adjustment_Admm::BA_Admm_options options =
+      const Bundle_Adjustment_Admm::BA_Admm_options &options =
           std::move(Bundle_Adjustment_Admm::BA_Admm_options()));
+
   bool Adjust(sfm::SfM_Data& sfm_data,
               const Optimize_Options& options) override;
 };  // class Bundle_adjustment_Admm

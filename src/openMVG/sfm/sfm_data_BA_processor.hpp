@@ -31,7 +31,7 @@ class Processor {
         pose_consensus_params_(pose_params),
         structure_consensus_params_(structure_params) {}
   virtual ~Processor() {}
-  virtual void XOptimization() = 0;
+  virtual double XOptimization() = 0;
   // params + 1.0 / rho * params_multipler
   virtual void ZOptimization() = 0;
   virtual void YUpdate() = 0;
@@ -39,6 +39,9 @@ class Processor {
   virtual std::vector<double> getLocalCameraParams() = 0;
   virtual std::vector<double> getLocalPoseParams() = 0;
   virtual std::vector<double> getLocalStructureParams() = 0;
+
+  virtual double PrimaryResidual() = 0;
+  virtual double DualResidual() = 0;
 
   virtual void setUpdateCameraParamsConsusence(
       const std::vector<double>& camera_params) {}
@@ -77,7 +80,7 @@ class CPUProcessor : public Processor {
       : Processor(camera_ptr_, camera_params, pose_params, structure_params,
                   observation, options, structure_weight, rho) {}
 
-  void XOptimization() override;
+  double XOptimization() override;
   // params + 1.0 / rho * params_multipler
   void ZOptimization() override;
   void YUpdate() override;
@@ -85,6 +88,9 @@ class CPUProcessor : public Processor {
   std::vector<double> getLocalCameraParams() override;
   std::vector<double> getLocalPoseParams() override;
   std::vector<double> getLocalStructureParams() override;
+
+  double PrimaryResidual() override;
+  double DualResidual() override;
 
   void setUpdateCameraParamsConsusence(
       const std::vector<double>& camera_consensus_params) override;
@@ -127,7 +133,7 @@ class CPUProcessor : public Processor {
       if (s.find(i) != s.end()) {
         res_vector.push_back(origin_params[i]);
       } else {
-        res_vector.push_back(origin_params[i] - d * origin_params_multipler[i]);
+        res_vector.push_back(origin_params[i] + d * origin_params_multipler[i]);
       }
     }
     return res_vector;
@@ -142,6 +148,9 @@ class CPUProcessor : public Processor {
     }
     return res;
   }
+
+  double dual_residual_square_normal_;
+
 };
 
 }  // namespace sfm

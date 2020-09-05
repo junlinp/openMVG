@@ -21,6 +21,9 @@
 namespace openMVG {
 namespace sfm {
 
+Bundle_Adjustment_Admm::Bundle_Adjustment_Admm(
+      const Bundle_Adjustment_Admm::BA_Admm_options &options ) {}
+
 double ApplyGPS(SfM_Data& sfm_data, const Optimize_Options& options) {
   double pose_center_robust_fitting_error = 0.0;
   openMVG::geometry::Similarity3 sim_to_center;
@@ -84,12 +87,25 @@ double ApplyGPS(SfM_Data& sfm_data, const Optimize_Options& options) {
   }
   return pose_center_robust_fitting_error;
 }
+
+std::vector<double> VectorPlus(const std::vector<double>& lhs,
+                               const std::vector<double>& rhs) {
+  assert(lhs.size() == rhs.size());
+  std::vector<double> res = lhs;
+  for (int i = 0; i < res.size(); i++) {
+    res[i] += rhs[i];
+  }
+  return res;
+}
+
 bool Bundle_Adjustment_Admm::Adjust(SfM_Data& sfm_data,
                                     const Optimize_Options& options) {
   ApplyGPS(sfm_data, options);
-  std::map<openMVG::IndexT, std::shared_ptr<Processor>> view_id_map_processor;
-  std::map<openMVG::IndexT, std::shared_ptr<Processor>> pose_id_map_processor;
-  std::map<openMVG::IndexT, std::shared_ptr<Processor>>
+  std::map<openMVG::IndexT, std::vector<std::shared_ptr<Processor>>>
+      intrinsic_id_map_processor;
+  std::map<openMVG::IndexT, std::vector<std::shared_ptr<Processor>>>
+      pose_id_map_processor;
+  std::map<openMVG::IndexT, std::vector<std::shared_ptr<Processor>>>
       structure_id_map_processor;
   std::vector<std::shared_ptr<Processor>> total_processors;
 
@@ -133,36 +149,130 @@ bool Bundle_Adjustment_Admm::Adjust(SfM_Data& sfm_data,
       std::vector<double> ob_x = {obs_it.second.x(0), obs_it.second.x(1)};
       auto processor = std::make_shared<CPUProcessor>(
           intrinsic.get(), map_intrinsics[view->id_intrinsic],
-          map_poses[view->id_pose], map_structure[id_structure], ob_x, options);
+          map_poses[view->id_pose], map_structure[id_structure], ob_x, options, 0.0, 1.0);
 
-      view_id_map_processor[view->id_view] = processor;
-      pose_id_map_processor[view->id_pose] = processor;
-      structure_id_map_processor[id_structure] = processor;
+      intrinsic_id_map_processor[view->id_intrinsic].push_back(processor);
+      pose_id_map_processor[view->id_pose].push_back(processor);
+      structure_id_map_processor[id_structure].push_back(processor);
       total_processors.push_back(processor);
     }
   }
 
   // one epoch
-  //
-  // std::for_each(total_processors.begin(), total_processors.end(),
-  //              [](const auto& element) { element->X_update(); });
+  int max_epoches = 256;
+  for (int epoch = 0; epoch < max_epoches; epoch++) {
+    // optimization
+    double error = 0.0;
+    for (auto& process : total_processors) {
+      error += process->XOptimization();
+      process->ZOptimization();
+    }
+    std::cout << "Mean error : " << error / total_processors.size() << std::endl;
 
-  // collect all the variable
-  std::vector<double> initial_;
-  // TODO:
-  // this binary function can reuse;
-  // std::accumulate(view_id_map_processor.begin(), view_id_map_processor.end(),
-  //                initial_,
-  //                [](const std::vector<double>& init, const auto& item) {
-  //                  auto res = init;
-  //                  if (init.size() == 0) {
-  //                    res = item->getLocalCameraParams();
-  //                  } else {
-  //                    res = init + item->getLocalCameraParams();
-  //                  }
-  //                  return res;
-  //                });
-  return false;
+
+    for (auto pair : intrinsic_id_map_processor) {
+      std::vector<double> camera_mean_parameter;
+      for (auto process : pair.second) {
+        if (camera_mean_parameter.empty()) {
+          camera_mean_parameter = process->getLocalCameraParams();
+        } else {
+          camera_mean_parameter = VectorPlus(camera_mean_parameter,
+                                             process->getLocalCameraParams());
+        }
+      }
+
+      for (int i = 0; i < camera_mean_parameter.size(); i++) {
+        camera_mean_parameter[i] /= pair.second.size();
+      }
+      for (auto process : pair.second) {
+        process->setUpdateCameraParamsConsusence(camera_mean_parameter);
+      }
+      map_intrinsics[pair.first] = camera_mean_parameter;
+    }
+
+    for (auto pair : pose_id_map_processor) {
+
+      std::vector<double> pose_mean_parameter;
+      for (auto process : pair.second) {
+        if (pose_mean_parameter.empty()) {
+          pose_mean_parameter = process->getLocalPoseParams();
+        } else {
+          pose_mean_parameter = VectorPlus(pose_mean_parameter, process->getLocalPoseParams());
+        }
+      }
+
+      for (int i = 0; i < pose_mean_parameter.size(); i++) {
+        pose_mean_parameter[i] /= pair.second.size();
+      }
+
+      for (auto process : pair.second) {
+        process->setUpdatePoseParamsConsusence(pose_mean_parameter);
+      }
+      map_poses[pair.first] = pose_mean_parameter;
+    }
+
+    // structure
+
+    for (auto pair : structure_id_map_processor) {
+      std::vector<double> structure_mean_parameter;
+      for (auto process : pair.second) {
+        if (structure_mean_parameter.empty()) {
+          structure_mean_parameter = process->getLocalStructureParams();
+        } else {
+          structure_mean_parameter = VectorPlus(structure_mean_parameter, process->getLocalStructureParams());
+        }
+      }
+
+      for (int i = 0; i < structure_mean_parameter.size(); i++) {
+        structure_mean_parameter[i] /= pair.second.size();
+      }
+
+      for (auto process : pair.second) {
+        process->setUpdateStructureParams(structure_mean_parameter);
+      }
+      map_structure[pair.first] = structure_mean_parameter;
+    }
+
+    double primary_residual_square_normal = 0.0;
+    for (auto process : total_processors) {
+      process->YUpdate();
+      primary_residual_square_normal += process->PrimaryResidual();
+    } 
+    std::cout << "Iterator [" << epoch << "]  Primary Residual : " << primary_residual_square_normal << std::endl;
+  }
+  
+  // reset the Similarity
+
+
+  // Rewrite Intrinsics data
+  for (const auto& intrinsic_it : sfm_data.intrinsics) {
+    const IndexT index_cam = intrinsic_it.first;
+    if (isValid(intrinsic_it.second->getType())) {
+      intrinsic_it.second->updateFromParams(map_intrinsics[index_cam]);
+    } else {
+      std::cerr << "Unsupported camera type." << std::endl;
+    }
+  }
+
+  // Setup Poses data
+  for (auto& pose_it : sfm_data.poses) {
+    const IndexT index_pose = pose_it.first;
+    const Pose3& pose = pose_it.second;
+    Mat3 R;
+    Vec3 t;
+    std::vector<double> pose_parameter = map_poses[index_pose];
+    ceres::AngleAxisToRotationMatrix(&pose_parameter[0], R.data());
+    t << pose_parameter[3], pose_parameter[4], pose_parameter[5];
+    pose_it.second = Pose3(R, t); 
+  }
+
+  for (auto& structure_landmark_it : sfm_data.structure) {
+    const IndexT id_structure = structure_landmark_it.first;
+    std::vector<double> X = map_structure[id_structure]; 
+    structure_landmark_it.second.X = Vec3(X[0], X[1], X[2]);
+  }
+
+  return true;
 }
 }  // namespace sfm
 }  // namespace openMVG

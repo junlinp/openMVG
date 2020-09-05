@@ -24,6 +24,7 @@
 #include "openMVG/sfm/sfm_data_transform.hpp"
 #include "openMVG/sfm/sfm_data_utils.hpp"
 #include "openMVG/sfm/sfm_data_triangulation.hpp"
+#include "openMVG/sfm/sfm_data_BA_admm.hpp"
 
 #include "openMVG/sfm/sfm_filters.hpp"
 
