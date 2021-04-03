@@ -249,7 +249,7 @@ int main(int argc, char **argv)
 
     C_Progress_display my_progress_bar(sfm_data.GetViews().size(),
       std::cout, "\n- EXTRACT FEATURES -\n" );
-
+    size_t feature_count = 0;
     // Use a boolean to track if we must stop feature extraction
     std::atomic<bool> preemptive_exit(false);
 #ifdef OPENMVG_USE_OPENMP
@@ -332,10 +332,12 @@ int main(int argc, char **argv)
           preemptive_exit = true;
           continue;
         }
+        feature_count += regions->RegionCount();
       }
       ++my_progress_bar;
     }
     std::cout << "Task done in (s): " << timer.elapsed() << std::endl;
+    std::cout << "Mean Feature Extracted : " << feature_count * 1.0 / sfm_data.views.size() << std::endl;
   }
   return EXIT_SUCCESS;
 }
