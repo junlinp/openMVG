@@ -16,81 +16,97 @@
 #include <string>
 #include <vector>
 
-#include "openMVG/types.hpp"
+#include "openMVG/sfm/pipelines/sfm_regions_provider.hpp"
+#include "openMVG/sfm/sfm_data.hpp"
 #include "openMVG/stl/split.hpp"
+#include "openMVG/types.hpp"
 
 namespace openMVG {
 
 /// Generate all the (I,J) pairs of the upper diagonal of the NxN matrix
-inline Pair_Set exhaustivePairs(const size_t N)
-{
+inline Pair_Set exhaustivePairs(const size_t N) {
   Pair_Set pairs;
   for (IndexT I = 0; I < static_cast<IndexT>(N); ++I)
-    for (IndexT J = I+1; J < static_cast<IndexT>(N); ++J)
-      pairs.insert({I,J});
+    for (IndexT J = I + 1; J < static_cast<IndexT>(N); ++J)
+      pairs.insert({I, J});
 
   return pairs;
 }
 
 /// Generate the pairs that have a distance inferior to the overlapSize
 /// Usable to match video sequence
-inline Pair_Set contiguousWithOverlap(const size_t N, const size_t overlapSize)
-{
+inline Pair_Set contiguousWithOverlap(const size_t N,
+                                      const size_t overlapSize) {
   Pair_Set pairs;
   for (IndexT I = 0; I < static_cast<IndexT>(N); ++I)
-    for (IndexT J = I+1; J < I+1+overlapSize && J < static_cast<IndexT>(N); ++J)
-      pairs.insert({I,J});
+    for (IndexT J = I + 1;
+         J < I + 1 + overlapSize && J < static_cast<IndexT>(N); ++J)
+      pairs.insert({I, J});
   return pairs;
 }
 
+inline Pair_Set SimilarityPairs(sfm::SfM_Data &sfm_data,
+                                sfm::Regions_Provider *regions_provider) {
+  Pair_Set res;
+  if (regions_provider == nullptr) {
+    std::cerr << "Regions_Provider is nullptr" << std::endl;
+    return res;
+  }
+  for (auto view_pair : sfm_data.views) {
+    IndexT view_id = view_pair.first;
+    auto regions = regions_provider->get(view_id);
+  }
+  return res;
+}
 /// Load a set of Pair_Set from a file
 /// I J K L (pair that link I)
 inline bool loadPairs(
-     const size_t N,  // number of image in the current project (to check index validity)
-     const std::string &sFileName, // filename of the list file,
-     Pair_Set & pairs)  // output pairs read from the list file
+    const size_t
+        N,  // number of image in the current project (to check index validity)
+    const std::string &sFileName,  // filename of the list file,
+    Pair_Set &pairs)               // output pairs read from the list file
 {
   std::ifstream in(sFileName.c_str());
-  if (!in.is_open())
-  {
+  if (!in.is_open()) {
     std::cerr << std::endl
-      << "loadPairs: Impossible to read the specified file: \"" << sFileName << "\"." << std::endl;
+              << "loadPairs: Impossible to read the specified file: \""
+              << sFileName << "\"." << std::endl;
     return false;
   }
   std::string sValue;
   std::vector<std::string> vec_str;
-  while (std::getline( in, sValue ) )
-  {
+  while (std::getline(in, sValue)) {
     vec_str.clear();
     stl::split(sValue, ' ', vec_str);
-    const IndexT str_size (vec_str.size());
-    if (str_size < 2)
-    {
-      std::cerr << "loadPairs: Invalid input file: \"" << sFileName << "\"." << std::endl;
+    const IndexT str_size(vec_str.size());
+    if (str_size < 2) {
+      std::cerr << "loadPairs: Invalid input file: \"" << sFileName << "\"."
+                << std::endl;
       return false;
     }
     std::stringstream oss;
-    oss.clear(); oss.str(vec_str[0]);
+    oss.clear();
+    oss.str(vec_str[0]);
     IndexT I, J;
     oss >> I;
-    for (IndexT i=1; i<str_size; ++i)
-    {
-      oss.clear(); oss.str(vec_str[i]);
+    for (IndexT i = 1; i < str_size; ++i) {
+      oss.clear();
+      oss.str(vec_str[i]);
       oss >> J;
-      if ( I > N-1 || J > N-1) //I&J always > 0 since we use unsigned type
+      if (I > N - 1 || J > N - 1)  // I&J always > 0 since we use unsigned type
       {
         std::cerr << "loadPairs: Invalid input file. Image out of range. "
-                << "I: " << I << " J:" << J << " N:" << N << std::endl
-                << "File: \"" << sFileName << "\"." << std::endl;
+                  << "I: " << I << " J:" << J << " N:" << N << std::endl
+                  << "File: \"" << sFileName << "\"." << std::endl;
         return false;
       }
-      if ( I == J )
-      {
-        std::cerr << "loadPairs: Invalid input file. Image " << I << " see itself. File: \"" << sFileName << "\"." << std::endl;
+      if (I == J) {
+        std::cerr << "loadPairs: Invalid input file. Image " << I
+                  << " see itself. File: \"" << sFileName << "\"." << std::endl;
         return false;
       }
       // Insert the pair such that .first < .second
-      pairs.insert( {std::min(I, J), std::max(I,J)} );
+      pairs.insert({std::min(I, J), std::max(I, J)});
     }
   }
   in.close();
@@ -101,16 +117,15 @@ inline bool loadPairs(
 /// I J
 /// I K
 /// ...
-inline bool savePairs(const std::string &sFileName, const Pair_Set & pairs)
-{
+inline bool savePairs(const std::string &sFileName, const Pair_Set &pairs) {
   std::ofstream outStream(sFileName.c_str());
-  if (!outStream.is_open())  {
+  if (!outStream.is_open()) {
     std::cerr << std::endl
-      << "savePairs: Impossible to open the output specified file: \"" << sFileName << "\"." << std::endl;
+              << "savePairs: Impossible to open the output specified file: \""
+              << sFileName << "\"." << std::endl;
     return false;
   }
-  for ( const auto & cur_pair : pairs )
-  {
+  for (const auto &cur_pair : pairs) {
     outStream << cur_pair.first << ' ' << cur_pair.second << '\n';
   }
   const bool bOk = !outStream.bad();
@@ -118,6 +133,6 @@ inline bool savePairs(const std::string &sFileName, const Pair_Set & pairs)
   return bOk;
 }
 
-} // namespace openMVG
+}  // namespace openMVG
 
-#endif // OPENMVG_MATCHING_IMAGE_COLLECTION_PAIR_BUILDER_HPP
+#endif  // OPENMVG_MATCHING_IMAGE_COLLECTION_PAIR_BUILDER_HPP

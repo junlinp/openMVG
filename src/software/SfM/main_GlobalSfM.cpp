@@ -152,7 +152,9 @@ int main(int argc, char **argv)
   (
     !(matches_provider->load(sfm_data, sMatchFilename) ||
       matches_provider->load(sfm_data, stlplus::create_filespec(sMatchesDir, "matches.e.txt")) ||
-      matches_provider->load(sfm_data, stlplus::create_filespec(sMatchesDir, "matches.e.bin")))
+      matches_provider->load(sfm_data, stlplus::create_filespec(sMatchesDir, "matches.e.bin")) ||
+      matches_provider->load(sfm_data, stlplus::create_filespec(sMatchesDir, "matches.f.txt")) ||
+      matches_provider->load(sfm_data, stlplus::create_filespec(sMatchesDir, "matches.f.bin")))
   )
   {
     std::cerr << std::endl

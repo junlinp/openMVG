@@ -73,8 +73,9 @@ struct GeometricFilter_FMatrix_AC
     using KernelType =
       ACKernelAdaptor<
         openMVG::fundamental::kernel::SevenPointSolver,
-        openMVG::fundamental::kernel::EpipolarDistanceError,
+        //openMVG::fundamental::kernel::EpipolarDistanceError,
         //openMVG::fundamental::kernel::SymmetricEpipolarDistanceError,
+        openMVG::fundamental::kernel::SampsonError,
         UnnormalizerT,
         Mat3>;
 

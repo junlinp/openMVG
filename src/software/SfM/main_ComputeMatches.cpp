@@ -60,7 +60,8 @@ enum EPairMode
 {
   PAIR_EXHAUSTIVE = 0,
   PAIR_CONTIGUOUS = 1,
-  PAIR_FROM_FILE  = 2
+  PAIR_FROM_FILE  = 2,
+  PAIR_SIMILARITY = 3
 };
 
 /// Compute corresponding features between a series of views:
@@ -311,6 +312,7 @@ int main(int argc, char **argv)
       case PAIR_EXHAUSTIVE: std::cout << "exhaustive pairwise matching" << std::endl; break;
       case PAIR_CONTIGUOUS: std::cout << "sequence pairwise matching" << std::endl; break;
       case PAIR_FROM_FILE:  std::cout << "user defined pairwise matching" << std::endl; break;
+      case PAIR_SIMILARITY: std::cout << "similarity pairwise matching" << std::endl; break;
     }
 
     // Allocate the right Matcher according the Matching requested method
@@ -385,6 +387,7 @@ int main(int argc, char **argv)
               return EXIT_FAILURE;
           }
           break;
+          case PAIR_SIMILARITY: pairs = SimilarityPairs(sfm_data, regions_provider.get());
       }
       // Photometric matching of putative pairs
       collectionMatcher->Match(regions_provider, pairs, map_PutativesMatches, &progress);
