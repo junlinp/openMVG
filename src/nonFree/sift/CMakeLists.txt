@@ -15,6 +15,11 @@ add_definitions(-DVL_DISABLE_THREADS)
 
 include_directories(./vl)
 set(FEATS
+  vl/aib.c
+  vl/array.c
+  vl/covdet.c
+  vl/fisher.c
+  vl/gmm.c
   vl/generic.c
   vl/imopv_sse2.c
   vl/sift.c
