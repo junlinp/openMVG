@@ -21,6 +21,11 @@
 #include "openMVG/stl/split.hpp"
 #include "openMVG/types.hpp"
 
+extern "C" {
+#include "nonFree/sift/vl/gmm.h"
+#include "nonFree/sift/vl/fisher.h"
+}
+
 namespace openMVG {
 
 /// Generate all the (I,J) pairs of the upper diagonal of the NxN matrix
@@ -52,10 +57,27 @@ inline Pair_Set SimilarityPairs(sfm::SfM_Data &sfm_data,
     std::cerr << "Regions_Provider is nullptr" << std::endl;
     return res;
   }
+
+  // Initial GMM 
+  const int cluster_num = 32;
+  const int dimension = 128;
+  const vl_type data_type = VL_TYPE_FLOAT;
+  VlGMM * gmm_handle = vl_gmm_new(data_type, dimension, cluster_num);
+
   for (auto view_pair : sfm_data.views) {
     IndexT view_id = view_pair.first;
     auto regions = regions_provider->get(view_id);
   }
+
+  //vl_gmm_cluster(gmm_handle, data, num_data);
+  
+  const void * means = vl_gmm_get_means(gmm_handle);
+  const void * covariances = vl_gmm_get_covariances(gmm_handle);
+  const void * priors = vl_gmm_get_priors(gmm_handle);
+
+  //vl_fisher_encode(nullptr, data_type,
+  //  means, dimension, cluster_num,
+  //  covariances, priors, data, 129,  VL_FISHER_FLAG_FAST);
   return res;
 }
 /// Load a set of Pair_Set from a file

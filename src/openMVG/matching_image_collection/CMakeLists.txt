@@ -23,7 +23,9 @@ target_link_libraries(openMVG_matching_image_collection
   PUBLIC
     openMVG_matching
     openMVG_multiview
-    ${OPENMVG_LIBRARY_DEPENDENCIES})
+    ${OPENMVG_LIBRARY_DEPENDENCIES}
+    vlsift
+    )
 target_include_directories(openMVG_matching_image_collection
   PUBLIC
     $<INSTALL_INTERFACE:include>

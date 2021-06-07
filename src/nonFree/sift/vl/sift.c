@@ -19,27 +19,17 @@ the terms of the BSD license (see the COPYING file).
 reports. Although the following list is certainly incomplete, we would
 like to thank: Wei Dong, Loic, Giuseppe, Liu, Erwin, P. Ivanov, and
 Q. S. Luo.
+@tableofcontents
 <!-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~  -->
 
 @ref sift.h implements a @ref sift-usage "SIFT filter object", a
 reusable object to extract SIFT features @cite{lowe99object} from one
 or multiple images.
 
-- @ref sift-intro
-  - @ref sift-intro-detector
-  - @ref sift-intro-descriptor
-  - @ref sift-intro-extensions
-- @ref sift-usage
-- @ref sift-tech
-  - @ref sift-tech-ss
-  - @ref sift-tech-detector
-    -  @ref sift-tech-detector-peak
-    -  @ref sift-tech-detector-edge
-    -  @ref sift-tech-detector-orientation
-  - @ref sift-tech-descriptor
-    - @ref sift-tech-descriptor-can
-    - @ref sift-tech-descriptor-image
-    - @ref sift-tech-descriptor-std
+This is the original VLFeat implementation of SIFT, designed to be
+compatible with Lowe's original SIFT. See @ref covdet for a different
+version of SIFT integrated in the more general covariant feature
+detector engine.
 
 <!-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~  -->
 @section sift-intro Overview
@@ -57,10 +47,6 @@ descriptors of custom keypoints).
 @subsection sift-intro-detector SIFT detector
 <!-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~  -->
 
-@sa
-@ref sift-tech-ss "Scale space technical details",
-@ref sift-tech-detector "Detector technical details"
-
 A SIFT <em>keypoint</em> is a circular image region with an
 orientation. It is described by a geometric <em>frame</em> of four
 parameters: the keypoint center coordinates @e x and @e y, its @e
@@ -68,7 +54,7 @@ scale (the radius of the region), and its @e orientation (an angle
 expressed in radians). The SIFT detector uses as keypoints image
 structures which resemble &ldquo;blobs&rdquo;. By searching for blobs
 at multiple scales and positions, the SIFT detector is invariant (or,
-more accurately, covariant) to translation, rotations, and rescaling
+more accurately, covariant) to translation, rotations, and re scaling
 of the image.
 
 The keypoint orientation is also determined from the local image
@@ -448,7 +434,7 @@ center.
 
 Denote the gradient vector field computed at the scale @f$ \sigma @f$ by
 @f[
-  J(x,y) = \nalba I_\sigma(x,y)
+  J(x,y) = \nabla I_\sigma(x,y)
   =
   \left[\begin{array}{cc}
   \frac{\partial I_\sigma}{\partial x} &
@@ -533,19 +519,19 @@ the image frame). Assume that canonical and image frame are
 related by an affinity:
 
 @f[
-  \mathbf{x} = A \hat\mathbf{x} + T,
+  \mathbf{x} = A \hat{\mathbf{x}} + T,
   \qquad
   \mathbf{x} =
-  \left[\begin{array}{cc}
+  \begin{bmatrix}{c}
     x \\
     y
-  \end{arraty}\right],
+  \end{bmatrix},
   \quad
-  \hat\mathbf{x} =
-  \left[\begin{array}{cc}
+  \mathbf{x} =
+  \begin{bmatrix}{c}
     \hat x \\
     \hat y
-  \end{arraty}\right].
+  \end{bmatrix}.
 @f]
 
 @image html sift-image-frame.png
@@ -682,7 +668,9 @@ Gaussian window size is set to have standard deviation
 /** @internal @brief Use bilinear interpolation to compute orientations */
 #define VL_SIFT_BILINEAR_ORIENTATIONS 1
 
+#define EXPN_SZ  256          /**< ::fast_expn table size @internal */
 #define EXPN_MAX 25.0         /**< ::fast_expn table max  @internal */
+double expn_tab [EXPN_SZ+1] ; /**< ::fast_expn table      @internal */
 
 #define NBO 8
 #define NBP 4
@@ -701,7 +689,7 @@ Gaussian window size is set to have standard deviation
  **/
 
 VL_INLINE double
-fast_expn (VlSiftFilt const * filter, double x)
+fast_expn (double x)
 {
   double a,b,r ;
   int i ;
@@ -712,8 +700,8 @@ fast_expn (VlSiftFilt const * filter, double x)
   x *= EXPN_SZ / EXPN_MAX ;
   i = (int)vl_floor_d (x) ;
   r = x - i ;
-  a = filter->expn_tab [i    ] ;
-  b = filter->expn_tab [i + 1] ;
+  a = expn_tab [i    ] ;
+  b = expn_tab [i + 1] ;
   return a + r * (b - a) ;
 }
 
@@ -723,11 +711,11 @@ fast_expn (VlSiftFilt const * filter, double x)
  **/
 
 VL_INLINE void
-fast_expn_init (VlSiftFilt * filter)
+fast_expn_init ()
 {
   int k  ;
   for(k = 0 ; k < EXPN_SZ + 1 ; ++ k) {
-    filter->expn_tab [k] = exp (- (double) k * (EXPN_MAX / EXPN_SZ)) ;
+    expn_tab [k] = exp (- (double) k * (EXPN_MAX / EXPN_SZ)) ;
   }
 }
 
@@ -940,7 +928,7 @@ vl_sift_new (int width, int height,
   f-> grad_o  = o_min - 1 ;
 
   /* initialize fast_expn stuff */
-  fast_expn_init (f) ;
+  fast_expn_init () ;
 
   return f ;
 }
@@ -1444,6 +1432,7 @@ vl_sift_detect (VlSiftFilt * f)
 
 
 /** ------------------------------------------------------------------
+ ** @internal
  ** @brief Update gradients to current GSS octave
  **
  ** @param f SIFT filter.
@@ -1454,8 +1443,8 @@ vl_sift_detect (VlSiftFilt * f)
  ** @remark The minimum octave size is 2x2xS.
  **/
 
-void
-vl_sift_update_gradient (VlSiftFilt *f)
+static void
+update_gradient (VlSiftFilt *f)
 {
   int       s_min = f->s_min ;
   int       s_max = f->s_max ;
@@ -1612,6 +1601,9 @@ vl_sift_calc_keypoint_orientations (VlSiftFilt *f,
     return 0 ;
   }
 
+  /* make gradient up to date */
+  update_gradient (f) ;
+
   /* clear histogram */
   memset (hist, 0, sizeof(double) * nbins) ;
 
@@ -1636,7 +1628,7 @@ vl_sift_calc_keypoint_orientations (VlSiftFilt *f,
       /* limit to a circular window */
       if (r2 >= W*W + 0.6) continue ;
 
-      wgt  = fast_expn (f, r2 / (2*sigmaw*sigmaw)) ;
+      wgt  = fast_expn (r2 / (2*sigmaw*sigmaw)) ;
       mod  = *(pt + xs*xo + ys*yo    ) ;
       ang  = *(pt + xs*xo + ys*yo + 1) ;
       fbin = nbins * ang / (2 * VL_PI) ;
@@ -1841,7 +1833,7 @@ vl_sift_calc_raw_descriptor (VlSiftFilt const *f,
        * NBP/2. */
       vl_sift_pix const wsigma = f->windowSize ;
       vl_sift_pix win = fast_expn
-        (f, (nx*nx + ny*ny)/(2.0 * wsigma * wsigma)) ;
+        ((nx*nx + ny*ny)/(2.0 * wsigma * wsigma)) ;
 
       /* The sample will be distributed in 8 adjacent bins.
          We start from the ``lower-left'' bin. */
@@ -1990,6 +1982,9 @@ vl_sift_calc_keypoint_descriptor (VlSiftFilt *f,
      si    >  f->s_max - 2     )
     return ;
 
+  /* synchronize gradient buffer */
+  update_gradient (f) ;
+
   /* VL_PRINTF("W = %d ; magnif = %g ; SBP = %g\n", W,magnif,SBP) ; */
 
   /* clear descriptor */
@@ -2035,7 +2030,7 @@ vl_sift_calc_keypoint_descriptor (VlSiftFilt *f,
        * NBP/2. */
       vl_sift_pix const wsigma = f->windowSize ;
       vl_sift_pix win = fast_expn
-        (f, (nx*nx + ny*ny)/(2.0 * wsigma * wsigma)) ;
+        ((nx*nx + ny*ny)/(2.0 * wsigma * wsigma)) ;
 
       /* The sample will be distributed in 8 adjacent bins.
          We start from the ``lower-left'' bin. */

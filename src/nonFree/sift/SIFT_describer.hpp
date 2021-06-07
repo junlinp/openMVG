@@ -88,12 +88,12 @@ public:
     bool bOrientation = true
   ):Image_describer(), _params(params), _bOrientation(bOrientation)
   {
-    vl_constructor();
+    //vl_constructor();
   }
 
   ~SIFT_Image_describer()
   {
-    vl_destructor();
+    //vl_destructor();
   }
 
   bool Set_configuration_preset(EDESCRIBER_PRESET preset) override
@@ -174,7 +174,7 @@ public:
       const int nkeys = vl_sift_get_nkeypoints(filt);
 
       // Update gradient before launching parallel extraction
-      vl_sift_update_gradient(filt);
+      //vl_sift_update_gradient(filt);
 
       #ifdef OPENMVG_USE_OPENMP
       #pragma omp parallel for private(descr, descriptor)
